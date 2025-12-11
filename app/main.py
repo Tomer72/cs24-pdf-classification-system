@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from app.core.logger import setup_logger
 import logging
 from app.services.pdf_processor.manager import PDFProcessorManager
+from app.services.validator.local_validate import ExamValidator
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -9,6 +10,7 @@ setup_logger()
 app = FastAPI() 
 
 pdf_manager = PDFProcessorManager()
+validator = ExamValidator()
 logger = logging.getLogger(__name__)
 
 @app.post("/upload-file")
@@ -25,6 +27,7 @@ async def upload_file(
     
     try:
         file_bytes = await pdf_file.read()
+
     except Exception as e:
         raise HTTPException(status_code=400, detail="Failed to read file")
 
@@ -36,17 +39,16 @@ async def upload_file(
                 }
 
     extracted_text = pdf_manager.process(file_bytes)
+    is_valid = validator.validate(extracted_text, metadata)
 
-    return {
-        "status": "success",
-        "filename": pdf_file.filename,
-        "metadata_recieved": metadata,
-        "extraction_result": {
-            "length": len(extracted_text),
-            "preview": extracted_text[:500],
-            "full_text": extracted_text
+    if not is_valid:
+        logger.warning(f"Validation failed for the file: {pdf_file.filename}")
+        return {
+            "status": "warning",
+            "message": "Validation failed. the file content doesnt match the user input."
         }
-    }
+    else:
+        logger.info(f"Validation successful!")
 
 
     
