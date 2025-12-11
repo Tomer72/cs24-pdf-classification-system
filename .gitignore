@@ -1,0 +1,34 @@
+# --- Python Basics ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Virtual Environment (התיקייה הכבדה שרואים אצלך) ---
+venv/
+env/
+.venv/
+
+# --- Environment Variables & Secrets (קריטי!) ---
+.env
+.env.local
+config.py  # אם שמרת שם מפתחות, עדיף לא להעלות (או להשתמש ב-env vars)
+google_credentials.json
+client_secret.json
+service_account.json
+
+# --- Logs (רואים אצלך את debug.log) ---
+*.log
+debug.log
+app.log
+
+# --- Mac OS (קבצי מערכת מעצבנים) ---
+.DS_Store
+
+# --- IDEs (הגדרות עורך קוד) ---
+.vscode/
+.idea/
+
+# --- Testing & Coverage (לעתיד) ---
+.pytest_cache/
+.coverage
+htmlcov/
