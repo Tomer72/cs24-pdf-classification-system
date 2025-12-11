@@ -1,11 +1,14 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from app.core.logger import setup_logger
 import logging
-from app.services.pdf_processor.local_extractor import PyMuPDFExtractor
+from app.services.pdf_processor.cloud_extractor import GoogleVisionExtractor
+from dotenv import load_dotenv
 
+load_dotenv()
 setup_logger()
 app = FastAPI() 
-pdf_extractor = PyMuPDFExtractor()
+
+pdf_extractor = GoogleVisionExtractor()
 logger = logging.getLogger(__name__)
 
 @app.post("/upload-file")

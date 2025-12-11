@@ -12,9 +12,10 @@ env/
 .env
 .env.local
 config.py  # אם שמרת שם מפתחות, עדיף לא להעלות (או להשתמש ב-env vars)
-google_credentials.json
+credentials.json
 client_secret.json
 service_account.json
+
 
 # --- Logs (רואים אצלך את debug.log) ---
 *.log
