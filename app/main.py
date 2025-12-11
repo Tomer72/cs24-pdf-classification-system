@@ -1,14 +1,14 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from app.core.logger import setup_logger
 import logging
-from app.services.pdf_processor.cloud_extractor import GoogleVisionExtractor
+from app.services.pdf_processor.manager import PDFProcessorManager
 from dotenv import load_dotenv
 
 load_dotenv()
 setup_logger()
 app = FastAPI() 
 
-pdf_extractor = GoogleVisionExtractor()
+pdf_manager = PDFProcessorManager()
 logger = logging.getLogger(__name__)
 
 @app.post("/upload-file")
@@ -35,8 +35,7 @@ async def upload_file(
                 "degree": degree
                 }
 
-    extracted_text = pdf_extractor.extract(file_bytes)
-    logger.info(f"File '{pdf_file.filename}' classified successfully for course: {course_name}")
+    extracted_text = pdf_manager.process(file_bytes)
 
     return {
         "status": "success",
