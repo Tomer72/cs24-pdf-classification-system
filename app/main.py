@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from app.core.logger import setup_logger
 import logging
 from app.services.pdf_processor.manager import PDFProcessorManager
-from app.services.validator.local_validate import ExamValidator
+from app.services.validator.ai_validator import AIValidator
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,7 +10,7 @@ setup_logger()
 app = FastAPI() 
 
 pdf_manager = PDFProcessorManager()
-validator = ExamValidator()
+validator = AIValidator()
 logger = logging.getLogger(__name__)
 
 @app.post("/upload-file")
