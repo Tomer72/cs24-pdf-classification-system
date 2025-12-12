@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from app.core.logger import setup_logger
 import logging
 from app.services.pdf_processor.manager import PDFProcessorManager
-from app.services.validator.ai_validator import AIValidator
+from app.services.validator.manager import ValidationManager
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,7 +10,7 @@ setup_logger()
 app = FastAPI() 
 
 pdf_manager = PDFProcessorManager()
-validator = AIValidator()
+validator_manager = ValidationManager()
 logger = logging.getLogger(__name__)
 
 @app.post("/upload-file")
@@ -39,16 +39,9 @@ async def upload_file(
                 }
 
     extracted_text = pdf_manager.process(file_bytes)
-    is_valid = validator.validate(extracted_text, metadata)
+    is_valid = validator_manager.validate_process(extracted_text, metadata)
 
-    if not is_valid:
-        logger.warning(f"Validation failed for the file: {pdf_file.filename}")
-        return {
-            "status": "warning",
-            "message": "Validation failed. the file content doesnt match the user input."
-        }
-    else:
-        logger.info(f"Validation successful!")
+    logger.info(is_valid)
 
 
     

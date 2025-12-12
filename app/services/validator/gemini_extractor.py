@@ -19,7 +19,7 @@ class GeminiExtractor():
                 genai.configure(api_key=api_key)
                 
                 self.model = genai.GenerativeModel(
-                    'gemini-3-pro-preview',
+                    'gemini-2.5-flash',
                     generation_config={"response_mime_type": "application/json"}
                 )
             except Exception as e:
