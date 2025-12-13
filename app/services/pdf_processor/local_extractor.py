@@ -14,4 +14,4 @@ class PyMuPDFExtractor(BaseTextExtractor):
         except Exception as e:
             logger.error(f"PyMuPDF error: {e}")
             return ""
-        
+
