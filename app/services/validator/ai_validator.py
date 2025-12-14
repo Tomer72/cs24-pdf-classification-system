@@ -34,7 +34,7 @@ class AIValidator(BaseValidator):
     @staticmethod
     def compare_metadata(user_data: Dict[str, Any], ai_data: Dict[str, Any]) -> bool:
         match_count = 0
-        fields_to_check = ["course_name", "year", "semester", "term", "degree"]
+        fields_to_check = ["course_name", "year", "semester", "term", "degree", "institution"]
 
         logger.info("Starting metadata comparison...")
 

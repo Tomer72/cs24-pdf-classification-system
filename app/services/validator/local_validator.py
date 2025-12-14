@@ -33,7 +33,7 @@ class ExamValidator(BaseValidator):
 
     def count_field_matches(self, text: str, metadata: Dict[str, Any]) -> int:
         count = 0
-        fields_to_check = ["course_name", "semester", "year", "term", "degree"]
+        fields_to_check = ["course_name", "semester", "year", "term", "degree", "institution"]
         
         for field in fields_to_check:
             value = str(metadata.get(field, "")).lower()

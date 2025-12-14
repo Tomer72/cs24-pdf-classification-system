@@ -1,4 +1,5 @@
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends
+from pydantic import BaseModel
 from app.core.logger import setup_logger
 import logging
 from app.services.pdf_processor.manager import PDFProcessorManager
@@ -16,16 +17,42 @@ pdf_manager = PDFProcessorManager()
 validator_manager = ValidationManager()
 google_drive_uploader = GoogleDriveStorage()
 
+class ExamMetadata(BaseModel):
+    institution: str  
+    course_name: str
+    semester: str
+    year: str
+    term: str
+    degree: str
+
+    @classmethod
+    def as_form(
+        cls,
+        institution: str = Form(...),
+        course_name: str = Form(...),
+        semester: str = Form(...),
+        year: str = Form(...),
+        term: str = Form(...),
+        degree: str = Form(...)
+    ):
+   
+        return cls(
+            institution=institution,
+            course_name=course_name,
+            semester=semester,
+            year=year,
+            term=term,
+            degree=degree
+        )
+
 @app.post("/upload-file")
 async def upload_file(
-    course_name: str = Form(...),
-    semester: str = Form(...),
-    year: str = Form(...),
-    term: str = Form(...),
-    degree: str = Form(...),
+   
+    metadata: ExamMetadata = Depends(ExamMetadata.as_form), 
     pdf_file: UploadFile = File(...)
 ):
     
+
     if pdf_file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Invalid file type")
     
@@ -35,26 +62,16 @@ async def upload_file(
         logger.error(f"Error reading file: {e}")
         raise HTTPException(status_code=400, detail="Failed to read file")
     
-    
     if not file_bytes.startswith(b"%PDF"):
         logger.warning(f"Security Alert: User uploaded a fake pdf. filename: {pdf_file.filename}")
         raise HTTPException(status_code=400, detail="Invalid file format (Not a PDF)")
 
-    
-    user_metadata = {
-        "course_name": course_name,
-        "semester": semester,
-        "year": year,
-        "term": term,
-        "degree": degree
-    }
+    user_metadata = metadata.model_dump() 
 
-    
     extracted_text = pdf_manager.process(file_bytes)
    
     validation_result = validator_manager.validate_process(extracted_text, user_metadata)
 
-    
     if validation_result['status'] == 'failed':
         return {
             "status": "failed",
@@ -62,7 +79,6 @@ async def upload_file(
             "ai_suggestion": validation_result.get("ai_suggestion")
         }
 
-   
     final_metadata = validation_result.get("ai_data", user_metadata)
     
     logger.info(f"Uploading file with final metadata: {final_metadata}")
@@ -72,22 +88,9 @@ async def upload_file(
         original_filename=pdf_file.filename, 
         metadata=final_metadata
     )
-
   
     if not drive_link:
         raise HTTPException(status_code=500, detail="Upload to Drive failed")
     
     if drive_link == "exists":
-         return {
-            "status": "success",
-            "message": "File already exists in Drive.",
-            "data": final_metadata
-        }
-
-    return {
-        "status": "success",
-        "message": "File processed and uploaded successfully",
-        "drive_link": drive_link,
-        "final_metadata": final_metadata,
-        "source": validation_result["source"] 
-    }
+         return

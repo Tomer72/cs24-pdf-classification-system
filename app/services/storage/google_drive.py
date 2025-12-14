@@ -47,7 +47,6 @@ class GoogleDriveStorage(BaseStorage):
             return ""
 
         try:
-            
             ext = original_filename.split('.')[-1] if '.' in original_filename else 'pdf'
             
             new_filename = (
@@ -58,18 +57,20 @@ class GoogleDriveStorage(BaseStorage):
 
             logger.info(f"Preparing to upload: {new_filename}")
 
-            
-            degree_folder_id = self._get_or_create_folder(
-                folder_name=metadata.get('degree', 'General'), 
+            institution_folder_id = self._get_or_create_folder(
+                folder_name=metadata.get('institution', 'General Institution'), 
                 parent_id=self.root_folder_id
             )
             
+            degree_folder_id = self._get_or_create_folder(
+                folder_name=metadata.get('degree', 'General Degree'), 
+                parent_id=institution_folder_id  
+            )
             
             course_folder_id = self._get_or_create_folder(
                 folder_name=metadata.get('course_name', 'Unknown Course'), 
                 parent_id=degree_folder_id
             )
-            
             
             exams_folder_id = self._get_or_create_folder(
                 folder_name="מבחנים", 
@@ -79,10 +80,8 @@ class GoogleDriveStorage(BaseStorage):
             
             if self._file_exists(new_filename, exams_folder_id):
                 logger.warning(f"File '{new_filename}' already exists. Skipping upload.")
-               
                 return "exists"
 
-           
             file_metadata = {
                 'name': new_filename,
                 'parents': [exams_folder_id]

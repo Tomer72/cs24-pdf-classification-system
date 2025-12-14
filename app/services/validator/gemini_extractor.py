@@ -71,7 +71,7 @@ class GeminiExtractor():
         3. year: string (Format: YYYY e.g. 2025, OR Hebrew year e.g. תשפ״ה, תשפ״ו, תשפ״ג)
         4. term: string (Options: א, ב, ג, מיוחד)
         5. degree: string (Options: מדעי המחשב, הנדסת חשמל, הנדסת תעשייה וניהול)
-        
+        6. institution: string (Options: name of the institution or college: HIT, מכון טכנולוגי חולון, טכניון, תל אביב, העברית, בן גוריון וכו׳.)
         Exam Text:
         \"\"\"{text_preview}\"\"\"
         
