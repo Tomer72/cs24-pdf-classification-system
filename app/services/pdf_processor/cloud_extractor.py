@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class GoogleVisionExtractor(BaseTextExtractor):
     def __init__(self):
-        self._client = None
+        self._client = None 
 
     @property
     def client(self):

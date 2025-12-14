@@ -22,6 +22,7 @@ async def upload_file(
     degree: str = Form(...),
     pdf_file: UploadFile = File(...)
 ):
+
     if pdf_file.content_type != "application/pdf":
         raise HTTPException(status_code = 400, detail= "Invalid file type")
     
@@ -30,6 +31,10 @@ async def upload_file(
 
     except Exception as e:
         raise HTTPException(status_code=400, detail="Failed to read file")
+    
+    if not file_bytes.startswith(b"%PDF"):
+        logger.warning(f"Security Alert: User uploaded a fake pdf. filename: {pdf_file}")
+        raise HTTPException(status_code=400, detail="Invalid file format")
 
     metadata = {"course_name": course_name,
                 "semester": semester,
