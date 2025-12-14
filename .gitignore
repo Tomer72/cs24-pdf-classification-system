@@ -3,33 +3,44 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# --- Virtual Environment (התיקייה הכבדה שרואים אצלך) ---
+# --- Virtual Environment ---
+# חובה כדי שלא תעלה את כל הספריות של פייתון לגיט
 venv/
 env/
 .venv/
 
-# --- Environment Variables & Secrets (קריטי!) ---
+# --- Environment Variables & Secrets (CRITICAL SECURITY) ---
 .env
 .env.local
-config.py  # אם שמרת שם מפתחות, עדיף לא להעלות (או להשתמש ב-env vars)
+
+# --- Google Auth Files (מה שרואים בתמונה שלך) ---
+# זה המפתח של ה-Service Account (הרובוט)
 credentials.json
+
+# זה הקובץ שהורדת מ-GCP (ה-OAuth Client)
 client_secret.json
-service_account.json
+drive_credentials.json
 
+# זה הטוקן האישי שנוצר (מכיל את הגישה לדרייב שלך!) - אסור שיעלה!
+token.json
 
-# --- Logs (רואים אצלך את debug.log) ---
+# --- Logs ---
 *.log
 debug.log
 app.log
 
-# --- Mac OS (קבצי מערכת מעצבנים) ---
+# --- Mac OS ---
 .DS_Store
 
-# --- IDEs (הגדרות עורך קוד) ---
+# --- IDEs ---
 .vscode/
 .idea/
 
-# --- Testing & Coverage (לעתיד) ---
+# --- Testing ---
 .pytest_cache/
 .coverage
 htmlcov/
+
+# --- Utility Scripts ---
+# בחרת להסתיר את הסקריפט שמייצר טוקן - זה בסדר גמור
+generate_token.py
