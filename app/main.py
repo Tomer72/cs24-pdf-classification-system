@@ -4,7 +4,8 @@ from app.core.logger import setup_logger
 import logging
 from app.services.pdf_processor.manager import PDFProcessorManager
 from app.services.validator.manager import ValidationManager
-from app.services.storage.google_drive import GoogleDriveStorage
+
+from app.services.storage.cloudflare_r2 import CloudflareStorage 
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,7 +16,7 @@ app = FastAPI()
 
 pdf_manager = PDFProcessorManager()
 validator_manager = ValidationManager()
-google_drive_uploader = GoogleDriveStorage()
+cloudflare_uploader = CloudflareStorage()
 
 class ExamMetadata(BaseModel):
     institution: str  
@@ -35,7 +36,6 @@ class ExamMetadata(BaseModel):
         term: str = Form(...),
         degree: str = Form(...)
     ):
-   
         return cls(
             institution=institution,
             course_name=course_name,
@@ -47,11 +47,9 @@ class ExamMetadata(BaseModel):
 
 @app.post("/upload-file")
 async def upload_file(
-   
     metadata: ExamMetadata = Depends(ExamMetadata.as_form), 
     pdf_file: UploadFile = File(...)
 ):
-    
 
     if pdf_file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Invalid file type")
@@ -68,8 +66,12 @@ async def upload_file(
 
     user_metadata = metadata.model_dump() 
 
-    extracted_text = pdf_manager.process(file_bytes)
-   
+    processed_data = pdf_manager.process(file_bytes)
+
+    extracted_text = processed_data["text"]
+    optimized_bytes = processed_data["optimized_bytes"]
+
+
     validation_result = validator_manager.validate_process(extracted_text, user_metadata)
 
     if validation_result['status'] == 'failed':
@@ -83,14 +85,27 @@ async def upload_file(
     
     logger.info(f"Uploading file with final metadata: {final_metadata}")
 
-    drive_link = google_drive_uploader.upload_file(
-        file_bytes=file_bytes, 
+    drive_link = cloudflare_uploader.upload_file(
+        file_bytes=optimized_bytes, 
         original_filename=pdf_file.filename, 
         metadata=final_metadata
     )
   
     if not drive_link:
-        raise HTTPException(status_code=500, detail="Upload to Drive failed")
-    
+        raise HTTPException(status_code=500, detail="Upload to cloudflare failed")
+
     if drive_link == "exists":
-         return
+         return {
+            "status": "success",
+            "message": "File already exists.",
+            "data": final_metadata,
+            "link": None 
+         }
+
+    return {
+        "status": "success",
+        "message": "File processed and uploaded successfully",
+        "drive_link": drive_link, 
+        "final_metadata": final_metadata,
+        "source": validation_result["source"] 
+    }

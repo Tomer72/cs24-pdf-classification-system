@@ -1,8 +1,9 @@
 import logging
 import re
-from .interface import BaseTextExtractor
+from typing import Dict, Any
 from .local_extractor import PyMuPDFExtractor
 from .cloud_extractor import GoogleVisionExtractor
+from .linearization import LinearizationOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -10,12 +11,19 @@ class PDFProcessorManager:
     def __init__(self):
         self.local_extractor = PyMuPDFExtractor()
         self.cloud_extractor = GoogleVisionExtractor()
+        self.pdf_optimizer = LinearizationOptimizer()
 
-    def process(self, file_bytes: bytes) -> str:
+    def process(self, file_bytes: bytes) -> Dict[str, Any]:
+
         raw_text = self.extract_raw_text(file_bytes)
         clean_text = self.clean_text(raw_text)
+
+        optimized_bytes = self.pdf_optimizer.optimize(file_bytes)
         
-        return clean_text
+        return {
+            "text": clean_text,
+            "optimized_bytes": optimized_bytes
+        }
 
     def extract_raw_text(self, file_bytes: bytes) -> str:
         logger.info("Attempting local extraction (PyMuPDF)...")

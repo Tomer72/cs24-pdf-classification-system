@@ -9,3 +9,4 @@ google-auth-oauthlib
 google-auth
 pytest
 requests
+boto3
