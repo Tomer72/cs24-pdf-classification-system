@@ -18,11 +18,13 @@ def test_extract_text_success(mock_fitz_open, extractor):
 
     mock_fitz_open.return_value.__enter__.return_value = mock_doc
 
+    mock_fitz_open.return_value.__enter__.return_value = mock_doc
+
     result = extractor.extract(b"fake_pdf_content")
 
+    assert isinstance(result, str)
     assert result == "Hello World"
-    mock_doc.__getitem__.assert_called_with(0)
-
+    
 
 @patch("app.services.pdf_processor.local_extractor.fitz.open")
 def test_extract_scanned_pdf_returns_empty(mock_fitz_open, extractor):

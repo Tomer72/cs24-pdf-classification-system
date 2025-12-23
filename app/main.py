@@ -4,8 +4,9 @@ from app.core.logger import setup_logger
 import logging
 from app.services.pdf_processor.manager import PDFProcessorManager
 from app.services.validator.manager import ValidationManager
-
 from app.services.storage.cloudflare_r2 import CloudflareStorage 
+from app.services.storage.google_drive import GoogleDriveStorage
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,6 +18,7 @@ app = FastAPI()
 pdf_manager = PDFProcessorManager()
 validator_manager = ValidationManager()
 cloudflare_uploader = CloudflareStorage()
+drive_uploader = GoogleDriveStorage()
 
 class ExamMetadata(BaseModel):
     institution: str  
@@ -85,14 +87,14 @@ async def upload_file(
     
     logger.info(f"Uploading file with final metadata: {final_metadata}")
 
-    drive_link = cloudflare_uploader.upload_file(
+    drive_link = drive_uploader.upload_file(
         file_bytes=optimized_bytes, 
         original_filename=pdf_file.filename, 
         metadata=final_metadata
     )
   
     if not drive_link:
-        raise HTTPException(status_code=500, detail="Upload to cloudflare failed")
+        raise HTTPException(status_code=500, detail="Upload to google drive failed")
 
     if drive_link == "exists":
          return {
