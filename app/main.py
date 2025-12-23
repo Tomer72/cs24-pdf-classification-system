@@ -2,10 +2,9 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends
 from pydantic import BaseModel
 from app.core.logger import setup_logger
 import logging
-from app.services.pdf_processor.manager import PDFProcessorManager
-from app.services.validator.manager import ValidationManager
-# from app.services.storage.cloudflare_r2 import CloudflareStorage 
-from app.services.storage.google_drive import GoogleDriveStorage
+
+from app.services.workflow_service import DocumentProcessingService
+from app.dependencies import get_document_service
 
 from dotenv import load_dotenv
 
@@ -14,11 +13,6 @@ setup_logger()
 logger = logging.getLogger(__name__)
 
 app = FastAPI() 
-
-pdf_manager = PDFProcessorManager()
-validator_manager = ValidationManager()
-# cloudflare_uploader = CloudflareStorage()
-drive_uploader = GoogleDriveStorage()
 
 class ExamMetadata(BaseModel):
     institution: str  
@@ -50,7 +44,8 @@ class ExamMetadata(BaseModel):
 @app.post("/upload-file")
 async def upload_file(
     metadata: ExamMetadata = Depends(ExamMetadata.as_form), 
-    pdf_file: UploadFile = File(...)
+    pdf_file: UploadFile = File(...),
+    service: DocumentProcessingService = Depends(get_document_service)
 ):
 
     if pdf_file.content_type != "application/pdf":
@@ -68,45 +63,15 @@ async def upload_file(
 
     user_metadata = metadata.model_dump() 
 
-    processed_data = pdf_manager.process(file_bytes)
+    try:
+        result = service.process_and_upload(
+            file_bytes=file_bytes,
+            filename=pdf_file.filename,
+            user_metadata=user_metadata
+        )
 
-    extracted_text = processed_data["text"]
-    optimized_bytes = processed_data["optimized_bytes"]
-
-    validation_result = validator_manager.validate_process(extracted_text, user_metadata)
-
-    if validation_result['status'] == 'failed':
-        return {
-            "status": "failed",
-            "message": "Validation failed. Manual review required.",
-            "ai_suggestion": validation_result.get("ai_suggestion")
-        }
-
-    final_metadata = validation_result.get("ai_data", user_metadata)
+        return result
     
-    logger.info(f"Uploading file with final metadata: {final_metadata}")
-
-    drive_link = drive_uploader.upload_file(
-        file_bytes=optimized_bytes, 
-        original_filename=pdf_file.filename, 
-        metadata=final_metadata
-    )
-  
-    if not drive_link:
-        raise HTTPException(status_code=500, detail="Upload to google drive failed")
-
-    if drive_link == "exists":
-         return {
-            "status": "success",
-            "message": "File already exists.",
-            "data": final_metadata,
-            "link": None 
-         }
-
-    return {
-        "status": "success",
-        "message": "File processed and uploaded successfully",
-        "drive_link": drive_link, 
-        "final_metadata": final_metadata,
-        "source": validation_result["source"] 
-    }
+    except Exception as e:
+        logger.error(f"Processing error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
