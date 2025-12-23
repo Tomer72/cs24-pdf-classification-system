@@ -4,7 +4,7 @@ from app.core.logger import setup_logger
 import logging
 from app.services.pdf_processor.manager import PDFProcessorManager
 from app.services.validator.manager import ValidationManager
-from app.services.storage.cloudflare_r2 import CloudflareStorage 
+# from app.services.storage.cloudflare_r2 import CloudflareStorage 
 from app.services.storage.google_drive import GoogleDriveStorage
 
 from dotenv import load_dotenv
@@ -17,7 +17,7 @@ app = FastAPI()
 
 pdf_manager = PDFProcessorManager()
 validator_manager = ValidationManager()
-cloudflare_uploader = CloudflareStorage()
+# cloudflare_uploader = CloudflareStorage()
 drive_uploader = GoogleDriveStorage()
 
 class ExamMetadata(BaseModel):
@@ -72,7 +72,6 @@ async def upload_file(
 
     extracted_text = processed_data["text"]
     optimized_bytes = processed_data["optimized_bytes"]
-
 
     validation_result = validator_manager.validate_process(extracted_text, user_metadata)
 
