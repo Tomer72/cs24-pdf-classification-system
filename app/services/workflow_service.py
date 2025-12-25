@@ -1,9 +1,11 @@
 import logging
 from typing import Dict, Any
+import time
 
 from app.services.pdf_processor.manager import PDFProcessorManager
 from app.services.validator.manager import ValidationManager
 from app.services.storage.google_drive import GoogleDriveStorage
+from app.services.storage.cloudflare_r2 import CloudflareStorage
 
 logger = logging.getLogger(__name__)
 
@@ -12,13 +14,15 @@ class DocumentProcessingService:
             self,
             pdf_manager: PDFProcessorManager,
             validator_manager: ValidationManager,
-            storage_service: GoogleDriveStorage
+            storage_service: CloudflareStorage
     ):
         self.pdf_manager = pdf_manager
         self.validator_manager = validator_manager
         self.storage_service = storage_service
 
     def process_and_upload(self, file_bytes: bytes, filename: str, user_metadata: Dict[str, Any]) -> Dict[str, Any]:
+
+        start_time = time.time()
 
         processed_data = self.pdf_manager.process(file_bytes)
         extracted_text = processed_data["text"]
@@ -46,13 +50,9 @@ class DocumentProcessingService:
         if not drive_link:
             raise Exception("Storage upload failed")
 
-        if drive_link == "exists":
-            return {
-                "status": "success",
-                "message": "File already exists.",
-                "data": final_metadata,
-                "link": None 
-            }
+        end_time = time.time()
+        
+        logger.info(f"Process & Upload finished in {(end_time - start_time):.4f} seconds.")
 
         return {
             "status": "success",

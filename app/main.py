@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends
 from pydantic import BaseModel
 from app.core.logger import setup_logger
@@ -7,8 +10,8 @@ from app.services.workflow_service import DocumentProcessingService
 from app.dependencies import get_document_service
 
 from dotenv import load_dotenv
-
 load_dotenv()
+
 setup_logger()
 logger = logging.getLogger(__name__)
 
