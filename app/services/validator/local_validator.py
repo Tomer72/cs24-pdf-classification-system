@@ -19,7 +19,7 @@ class ExamValidator(BaseValidator):
         
         logger.info(f"Validation finished. Fields matched: {match_count}/5")
 
-        return match_count >= 3
+        return match_count > 3
 
     def is_test_context(self, text: str) -> bool:
         keywords = ["מבחן", "מבחנים", "בחינה", "מועד", "סמסטר", "שנה", "נבחנים", "משך הבחינה", "הוראות"]
