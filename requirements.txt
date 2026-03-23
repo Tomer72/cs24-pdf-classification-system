@@ -3,10 +3,12 @@ uvicorn
 python-multipart
 python-dotenv
 pymupdf
+pikepdf
 google-cloud-vision
 google-api-python-client
 google-auth-oauthlib
 google-auth
+google-generativeai
 pytest
 requests
 boto3
