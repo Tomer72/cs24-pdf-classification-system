@@ -1,122 +1,74 @@
 # CS24 PDF File Classification System
 
-FastAPI backend that extracts exam metadata from uploaded PDFs, validates it (local heuristic -> Gemini fallback), optimizes the PDF, and stores the optimized file in **Cloudflare R2** by default (Google Drive storage is also implemented as an alternative backend).
+Backend service for validating, classifying, optimizing, and storing academic exam PDFs. The system accepts user-supplied exam metadata, extracts text from the uploaded PDF, verifies that the document matches the metadata, and stores the optimized file in structured cloud storage.
 
-## Features
-- Smart PDF processing
-  - Validates uploaded files as real PDFs (`%PDF` magic bytes check)
-  - Local text extraction with `PyMuPDF`
-  - Cloud OCR fallback using **Google Cloud Vision**
-  - PDF linearization/optimization before upload
+The project is built with FastAPI and uses a layered validation strategy:
+- First, try deterministic validation with local text extraction and heuristic matching.
+- If that is not enough, fall back to AI-assisted metadata extraction with Gemini.
+- Before storage, optimize the PDF with linearization for better delivery and handling.
+
+Default storage is **Cloudflare R2**. An alternative **Google Drive** storage backend is also implemented.
+
+## What It Solves
+
+This project was designed to reduce manual exam-file classification and upload work.
+
+Instead of relying on a person to:
+- open each PDF,
+- verify whether it is really an exam,
+- check that the metadata is correct,
+- rename or organize the file manually,
+- and upload it to the correct location,
+
+the backend automates that workflow with a validation pipeline and metadata-based storage path generation.
+
+## Core Features
+
+- PDF validation at upload time
+  - Rejects non-PDF files by MIME type and `%PDF` magic bytes check
+- Text extraction pipeline
+  - Local extraction with `PyMuPDF`
+  - OCR fallback with `Google Cloud Vision` for scanned PDFs
 - Metadata validation
-  - Local exam detection + field matching for `institution`, `course_name`, `semester`, `year`, `term`, `degree`
-  - If local validation fails, metadata is extracted with **Gemini** (requires `GOOGLE_API_KEY`) and compared to the user-provided fields
-- Storage
-  - Default: **Cloudflare R2** (S3-compatible object upload)
-  - Alternative: **Google Drive** storage (`GoogleDriveStorage`) with duplicate checks
-- Default storage backend is configured in `app/dependencies.py` (currently Cloudflare R2).
+  - Local exam-context detection and field matching
+  - AI fallback with `Gemini` when local validation is insufficient
+- PDF optimization
+  - Linearizes PDFs with `pikepdf` before upload
+- Cloud storage backends
+  - Default: `Cloudflare R2`
+  - Alternative: `Google Drive`
+- Structured file organization
+  - Builds storage paths from `institution`, `degree`, `course_name`, `semester`, `year`, and `term`
 
-## Prerequisites
-- Python 3.8+
-- Google Cloud Vision OCR
-  - A Google service account JSON file for Vision OCR
-  - Set `GOOGLE_APPLICATION_CREDENTIALS` to the path of that JSON
-- Gemini API
-  - Set `GOOGLE_API_KEY`
-- Cloudflare R2 storage
-  - `R2_ACCOUNT_ID`
-  - `R2_ACCESS_KEY`
-  - `R2_SECRET_KEY`
-  - `R2_BUCKET_NAME`
-- (Optional) Google Drive storage backend
-  - `GOOGLE_DRIVE_FOLDER_ID`
-  - Requires a locally created OAuth auth token (not committed)
+## Request Flow
 
-## 📦 Installation
+The runtime flow is:
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd cs24-backend
-    ```
+1. Client uploads `multipart/form-data` with metadata and a PDF.
+2. FastAPI validates the file type and checks the PDF signature.
+3. The PDF processor extracts text locally with `PyMuPDF`.
+4. If local extraction returns too little text, the system falls back to `Google Cloud Vision OCR`.
+5. Extracted text is normalized and cleaned.
+6. The validator first attempts local heuristic validation.
+7. If local validation fails, Gemini extracts metadata from the text and compares it against user input.
+8. If validation succeeds, the PDF is linearized and uploaded to cloud storage.
+9. The API returns the final metadata and whether the decision came from `local` or `ai` validation.
 
-2.  **Create and activate a virtual environment:**
-    ```bash
-    python -m venv <env>
-    source <env>/bin/activate  # On Windows: <env>\Scripts\activate
-    ```
+## Tech Stack
 
-3.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+- API framework: `FastAPI`
+- App server: `Uvicorn`
+- PDF parsing: `PyMuPDF`
+- PDF optimization: `pikepdf`
+- OCR: `Google Cloud Vision`
+- AI extraction: `Google Gemini`
+- Object storage: `Cloudflare R2` via `boto3`
+- Alternative storage: `Google Drive API`
+- Testing: `pytest`, `unittest.mock`
 
-4.  **Environment Setup:**
-    Create a local environment file (not committed) in the repo root:
-    ```env
-    # Google Cloud Vision OCR (service account json)
-    GOOGLE_APPLICATION_CREDENTIALS=/path/to/vision-credentials.json
+## Project Structure
 
-    # Gemini (used for metadata fallback extraction)
-    GOOGLE_API_KEY=your_gemini_api_key
-
-    # Cloudflare R2 (S3-compatible)
-    R2_ACCOUNT_ID=your_account_id
-    R2_ACCESS_KEY=your_access_key
-    R2_SECRET_KEY=your_secret_key
-    R2_BUCKET_NAME=your_bucket_name
-
-    # Optional (if switching storage to Google Drive)
-    GOOGLE_DRIVE_FOLDER_ID=your_root_folder_id_here
-    ```
-
-5.  **Auth files:**
-    - **Vision OCR**: ensure `GOOGLE_APPLICATION_CREDENTIALS` points to your Vision service account JSON.
-    - **Google Drive (optional)**: configure OAuth client credentials and an auth token locally (not committed)
-
-## 🚀 Usage
-
-1.  **Start the Server:**
-    ```bash
-    uvicorn app.main:app --reload
-    ```
-    The server will start at `http://127.0.0.1:8000`.
-
-2.  **API Documentation:**
-    Visit `http://127.0.0.1:8000/docs` for the interactive Swagger UI.
-
-3.  **Upload a File:**
-    Send a `POST` request to `/upload-file` as `multipart/form-data` with the following form fields:
-    - `institution`: (string)
-    - `course_name`: (string)
-    - `semester`: (string)
-    - `year`: (string)
-    - `term`: (string)
-    - `degree`: (string)
-    - `pdf_file`: (file, must be `application/pdf`)
-
-    Example:
-    ```bash
-    curl -X POST "http://127.0.0.1:8000/upload-file" \
-      -F "institution=HIT" \
-      -F "course_name=אלגוריתמים 2" \
-      -F "semester=חורף" \
-      -F "year=2025" \
-      -F "term=ב" \
-      -F "degree=מדעי המחשב" \
-      -F "pdf_file=@./algo2.pdf;type=application/pdf"
-    ```
-
-    Response:
-    - On success: `status`, `message`, `drive_link` (R2 object key when using the default storage backend), `final_metadata`, `source` (`local` or `ai`)
-    - On validation failure: `status=failed` and `ai_suggestion` (Gemini extracted suggestion when available)
-
-## Tests
-Run unit tests with `pytest`.
-
-## 📂 Project Structure
-
-```
+```text
 cs24-backend/
 ├── app/
 │   ├── core/
@@ -126,22 +78,241 @@ cs24-backend/
 │   │   │   ├── local_extractor.py
 │   │   │   ├── cloud_extractor.py
 │   │   │   ├── linearization.py
+│   │   │   ├── interface.py
 │   │   │   └── manager.py
 │   │   ├── validator/
 │   │   │   ├── local_validator.py
 │   │   │   ├── gemini_extractor.py
 │   │   │   ├── ai_validator.py
+│   │   │   ├── interface.py
 │   │   │   └── manager.py
 │   │   ├── storage/
 │   │   │   ├── cloudflare_r2.py
-│   │   │   └── google_drive.py
+│   │   │   ├── google_drive.py
+│   │   │   └── interface.py
 │   │   └── workflow_service.py
 │   ├── dependencies.py
 │   └── main.py
+├── tests/
+│   ├── test_local_extractor.py
+│   └── test_cloud_extractor.py
 ├── requirements.txt
+├── pytest.ini
 └── README.md
 ```
 
-## 🤝 Contributing
+## Prerequisites
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+- Python `3.8+`
+- A virtual environment is recommended
+
+Required for the default flow:
+- `GOOGLE_APPLICATION_CREDENTIALS`
+  - path to a Google Cloud Vision service account JSON file
+- `GOOGLE_API_KEY`
+  - used for Gemini metadata extraction fallback
+- `R2_ACCOUNT_ID`
+- `R2_ACCESS_KEY`
+- `R2_SECRET_KEY`
+- `R2_BUCKET_NAME`
+
+Optional for the alternative Google Drive backend:
+- `GOOGLE_DRIVE_FOLDER_ID`
+- local OAuth credentials and `token.json`
+
+## Installation
+
+1. Clone the repository:
+
+```bash
+git clone <repository-url>
+cd cs24-backend
+```
+
+2. Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Create a local `.env` file in the project root:
+
+```env
+# Google Cloud Vision OCR
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/vision-credentials.json
+
+# Gemini
+GOOGLE_API_KEY=your_gemini_api_key
+
+# Cloudflare R2
+R2_ACCOUNT_ID=your_account_id
+R2_ACCESS_KEY=your_access_key
+R2_SECRET_KEY=your_secret_key
+R2_BUCKET_NAME=your_bucket_name
+
+# Optional: Google Drive backend
+GOOGLE_DRIVE_FOLDER_ID=your_root_folder_id_here
+```
+
+## Running the Server
+
+Start the application with:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Server URL:
+
+```text
+http://127.0.0.1:8000
+```
+
+Interactive API docs:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+## API
+
+### Endpoint
+
+`POST /upload-file`
+
+### Form Fields
+
+- `institution`
+- `course_name`
+- `semester`
+- `year`
+- `term`
+- `degree`
+- `pdf_file` (`application/pdf`)
+
+### Example Request
+
+```bash
+curl -X POST "http://127.0.0.1:8000/upload-file" \
+  -F "institution=HIT" \
+  -F "course_name=אלגוריתמים 2" \
+  -F "semester=חורף" \
+  -F "year=2025" \
+  -F "term=ב" \
+  -F "degree=מדעי המחשב" \
+  -F "pdf_file=@./algo2.pdf;type=application/pdf"
+```
+
+### Success Response Example
+
+```json
+{
+  "status": "success",
+  "message": "File processed and uploaded successfully",
+  "drive_link": "HIT/מדעי המחשב/אלגוריתמים 2/מבחנים/מועד ב סמסטר חורף 2025.pdf",
+  "final_metadata": {
+    "institution": "HIT",
+    "course_name": "אלגוריתמים 2",
+    "semester": "חורף",
+    "year": "2025",
+    "term": "ב",
+    "degree": "מדעי המחשב"
+  },
+  "source": "local"
+}
+```
+
+Note: when using the default Cloudflare R2 backend, `drive_link` is the uploaded object key, not a public URL.
+
+### Validation Failure Response Example
+
+```json
+{
+  "status": "failed",
+  "message": "Validation failed. Manual review required.",
+  "ai_suggestion": {
+    "institution": "HIT",
+    "course_name": "אלגוריתמים 2",
+    "semester": "חורף",
+    "year": "2025",
+    "term": "ב",
+    "degree": "מדעי המחשב"
+  }
+}
+```
+
+## Validation Strategy
+
+### Local Validation
+
+The local validator checks:
+- whether the extracted text appears to be exam-related,
+- whether expected metadata values appear in the document,
+- and whether enough fields match to trust the result.
+
+### AI Validation
+
+If local validation fails:
+- Gemini extracts metadata from the PDF text,
+- the extracted values are compared against the user input,
+- and the API accepts the file if enough fields align.
+
+This gives the system a balance of speed and determinism for straightforward documents, while still handling noisier or scanned PDFs.
+
+## Storage Behavior
+
+### Cloudflare R2
+
+The default storage backend uploads the optimized PDF to an R2 bucket using an S3-compatible client.
+
+Generated path pattern:
+
+```text
+{institution}/{degree}/{course_name}/מבחנים/מועד {term} סמסטר {semester} {year}.pdf
+```
+
+### Google Drive
+
+An alternative storage backend is implemented for Google Drive. It:
+- creates folder levels dynamically,
+- organizes files by metadata,
+- and skips upload if the target filename already exists.
+
+## Tests
+
+Run the unit tests with:
+
+```bash
+pytest
+```
+
+Current tests focus on:
+- local PDF text extraction behavior,
+- OCR extractor behavior,
+- and failure handling in those components.
+
+## Limitations
+
+- Text extraction currently reads only the first page of the PDF.
+- OCR fallback also processes the first page only.
+- Validation is designed around exam-style Hebrew academic documents and metadata conventions.
+- End-to-end integration tests for the full upload pipeline are not included yet.
+
+## Future Improvements
+
+- Add full integration tests for the upload endpoint and storage backends
+- Support multi-page extraction and OCR
+- Add stronger metadata normalization and fuzzy matching
+- Return a more precise storage field name than `drive_link` when using R2
+- Make the active storage backend configurable via environment variables
+
+## Contributing
+
+Contributions are welcome through pull requests and issue reports.
